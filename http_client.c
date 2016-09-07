@@ -79,11 +79,7 @@ int main(int argc, char* argv[]){
         return 1;
     }
 
-    //construct server address struct
-    struct sockaddr_in server_address;
-    memset(&server_address, '0', sizeof(server_address));
-    server_address.sin_family = AF_INET;
-
+    //convert domain to ip if necessary
     char* ip = malloc(32);
     host_to_ip(domain,ip);
     
@@ -94,7 +90,11 @@ int main(int argc, char* argv[]){
             "\r\n", page, domain, USERAGENT);
 
     printf("\n\nSending \n%s \n\n", out_buffer);
-
+    
+    //construct server address struct
+    struct sockaddr_in server_address;
+    memset(&server_address, 0, sizeof(server_address));
+    server_address.sin_family = AF_INET;
     server_address.sin_addr.s_addr = inet_addr(ip);
     server_address.sin_port = htons(server_port);
 
