@@ -140,7 +140,6 @@ int main(int argc, char* argv[]){
             break;
         }
 
-
         totalBytesRcvd += bytesRcvd;
         
         //terminate string
@@ -150,9 +149,10 @@ int main(int argc, char* argv[]){
         //Once we get the end of the HTML page, close the connection
         if(strstr(in_buffer, "</html>") != NULL){
             break;
-        }
+        } 
     }
-    printf("\n");
+    
+    printf("mames\n");
     close(socketfd);
 
     return 0;

@@ -46,12 +46,33 @@ int main (int argc, char* argv[]){
         printf("listen() failed, quitting");
         return 1;
     }
-
     //start infinite loop
     while(1){
 
+        //size of client address struct
+        int client_address_size = sizeof(client_address);
+        //accept incoming connection
 
+
+        if((client_socket = accept(server_socket, (struct sockaddr *) 
+                &my_address, &client_address_size)) < 0){
+            printf("accept() failed, quitting");
+            return 1;
+        }
+
+        printf("Client connected at %s\n", inet_ntoa(client_address.sin_addr));
+        handle_client(client_socket);
     }
     return 0;
+}
+
+//Fetches the file and sends it to the client
+int handle_client(int socket){
+
+    char out_buffer[129];
+    sprintf(out_buffer, "HTTP/1.1 200 OK");
+
+    
+
 }
 
