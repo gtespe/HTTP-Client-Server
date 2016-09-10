@@ -8,10 +8,12 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/stat.h>
 
 #define MAXPENDING (5)
-#define IN_BUFFER_LEN (1025)
-#define OUT_BUFFER_LEN (1025)
+#define IN_BUFFER_LEN (1024)
+#define OUT_BUFFER_LEN (1024)
+#define FILECHUNK_SIZE (1024)
 
 int handle_client(int socket);
 
@@ -28,9 +30,8 @@ int main (int argc, char* argv[]){
     struct sockaddr_in my_address;
 
     unsigned short my_port = atoi(argv[1]);
-
     
-    if(server_socket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP < 0)){
+    if((server_socket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
         printf("socket() failed, quitting");
         return 1;
     }
@@ -53,6 +54,7 @@ int main (int argc, char* argv[]){
     }
     //start infinite loop
     while(1){
+        printf("Waiting for client...\n");
 
         //size of client address struct
         int client_address_size = sizeof(client_address);
@@ -119,10 +121,18 @@ int handle_client(int socket){
     else{
         //check if the file exists
         if(access(filename, F_OK) != -1){
+            //open the requested file and find its length
+            FILE *fp = fopen(filename, "r");
+            fseek(fp, 0, SEEK_END);
+            int file_len = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+
             //File exists, send 200 ok, and then the file
             sprintf(out_buffer, "HTTP/1.1 200 OK\r\n" 
                                 "Date: %c\r\n"
-                                "\r\n", date);
+                                "Content-Type: text/plain\r\n"
+                                "Content-Length: %d\r\n"
+                                "\r\n", date, file_len);
 
             int out_len = strlen(out_buffer);
             if(send(socket, out_buffer, out_len, 0) != out_len){
@@ -130,6 +140,15 @@ int handle_client(int socket){
             }
             printf("200 sent\n");
 
+            char filechunk[FILECHUNK_SIZE];
+            int bytes_read = fread(filechunk, FILECHUNK_SIZE, 1, fp);
+
+            while(bytes_read > 0){
+                //send filechunks and repeat
+                printf("Sending: \n  %s\n", filechunk);
+                send(socket, filechunk, FILECHUNK_SIZE, 0);
+                bytes_read = fread(filechunk, FILECHUNK_SIZE, 1, fp);
+            }
         }
         else{
             //file doesnt exist, send 404
