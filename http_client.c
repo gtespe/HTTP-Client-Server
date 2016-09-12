@@ -32,7 +32,8 @@ int main(int argc, char* argv[]){
 
     if(argc == 4){
         //find the -p arg if it exists
-        for(int k = 1; k < argc; k ++){
+        int k;
+        for(k = 1; k < argc; k ++){
             if(strcmp(argv[k], "-p") == 0){
                 get_rtt = 1;
 
@@ -87,6 +88,7 @@ int main(int argc, char* argv[]){
     sprintf(out_buffer, "GET %s HTTP/1.1\r\n"
             "Host: %s\r\n"
             "User-Agent: %s\r\n"
+            "Connection: close\r\n"
             "\r\n", page, domain, USERAGENT);
 
     printf("\n\nSending \n%s \n\n", out_buffer);
@@ -134,7 +136,7 @@ int main(int argc, char* argv[]){
 
     //receive stream from socket
     while(1){
-        //set bytesRcvd, fill in_buffer, and check for errors
+        //set bytesRcvd, fill in_buffer, and check for errors/closed connection
         if((bytesRcvd = recv(socketfd, in_buffer, IN_BUFFER_LEN - 1, 0)) <= 0){
             printf("\n recv() failed or connection lost \n");
             break;
@@ -145,16 +147,9 @@ int main(int argc, char* argv[]){
         //terminate string
         in_buffer[bytesRcvd] = '\0';
         printf("%s", in_buffer);
-
-        //Once we get the end of the HTML page, close the connection
-        if(strstr(in_buffer, "</html>") != NULL){
-            break;
-        } 
     }
     
-    printf("mames\n");
     close(socketfd);
-
     return 0;
 }
 

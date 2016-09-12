@@ -36,6 +36,10 @@ int main (int argc, char* argv[]){
         return 1;
     }
 
+    int set_option = 1;
+    setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (char*)&set_option,
+                    sizeof(int));
+
     //Fill server address struct
     memset(&my_address, 0, sizeof(my_address));
     my_address.sin_family = AF_INET;
@@ -69,6 +73,7 @@ int main (int argc, char* argv[]){
 
         printf("Client connected at %s\n", inet_ntoa(client_address.sin_addr));
         handle_client(client_socket);
+        close(server_socket);
     }
     return 0;
 }
@@ -88,25 +93,26 @@ int handle_client(int socket){
         printf("\nrecv() failed or client disconnected, quitting...\n");
         return 1;
     }
+
+    printf("\n recv successful:\n %s\n", in_buffer);
     
     char out_buffer[OUT_BUFFER_LEN];
-    char filename [125];
-    float http_version;
 
-    //replace the first \n with a null terminator
-    //   this is kind of a hacky way of making sure the sscanf only
-    //   reads the first line
-    for(int k = 0; k < bytesRcvd; k++){
-        if(in_buffer[k] == '\n'){
-            in_buffer[k] = '\0';
-            break;
-        }
-    }
-    
-    //check for sscanf errors
-    if(sscanf(in_buffer, "GET %s HTTP/%f\r", filename, http_version) != 2){
-        
-        //Request parsing error, send 403
+    char* http_method = strtok(in_buffer, " ");
+    char* filename = strtok(NULL, " ");
+
+    //This is to make the filename ignore the initial /
+    filename+=1;
+
+    char* http_version = strtok(NULL, " ");
+
+    printf("\n httpmethod: %s\n", http_method);
+    printf("\n filename: %s\n", filename);
+    printf("\n http_version: %s\n", http_version);
+
+    //check for parsing errors
+    if(0){
+        //Error parsing request, send 403
         printf("Invalid request, sending 403\n");
         sprintf(out_buffer, "HTTP/1.1 403 Bad Request\r\n" 
                             "Date: %c\r\n"
@@ -129,25 +135,42 @@ int handle_client(int socket){
 
             //File exists, send 200 ok, and then the file
             sprintf(out_buffer, "HTTP/1.1 200 OK\r\n" 
-                                "Date: %c\r\n"
+                                "Date: %s\r\n"
                                 "Content-Type: text/plain\r\n"
                                 "Content-Length: %d\r\n"
                                 "\r\n", date, file_len);
 
             int out_len = strlen(out_buffer);
+
             if(send(socket, out_buffer, out_len, 0) != out_len){
                 printf("\nsent different number of bytes than expected");
             }
             printf("200 sent\n");
 
-            char filechunk[FILECHUNK_SIZE];
-            int bytes_read = fread(filechunk, FILECHUNK_SIZE, 1, fp);
+            char *filechunk = (char*)calloc(FILECHUNK_SIZE,1);
+            int bytes_read = fread(filechunk, sizeof(filechunk), 1, fp);
+            int chunk_len = strlen(filechunk);
+
+            //This is for the last send(), so that we can cut off the extra bytes
+            int leftover_len = file_len % chunk_len;
 
             while(bytes_read > 0){
                 //send filechunks and repeat
                 printf("Sending: \n  %s\n", filechunk);
-                send(socket, filechunk, FILECHUNK_SIZE, 0);
-                bytes_read = fread(filechunk, FILECHUNK_SIZE, 1, fp);
+                send(socket, filechunk, chunk_len, 0);
+                bytes_read = fread(filechunk, sizeof(filechunk), 1, fp);
+                chunk_len = strlen(filechunk);
+            }
+            
+            if(bytes_read == 0){
+                //There wasn't an error, we just reached EOF
+                //   Send the leftover bytes
+                send(socket, filechunk, leftover_len, 0);
+            }
+            else{
+                //There was an error
+                printf("FILE READ ERROR, Quitting");
+                return 1;
             }
         }
         else{
