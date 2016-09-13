@@ -134,7 +134,15 @@ int main(int argc, char* argv[]){
         return 1;
     }
 
-    FILE *output_file = fopen(raw_url, "a");
+    char filename[strlen(raw_url) + 6];
+
+    //Add .html if necessary
+    if(strstr(raw_url, ".html") == NULL)
+        sprintf(filename, "%s%s", raw_url, ".html");
+    else
+        sprintf(filename, "%s", raw_url);
+
+    FILE *output_file = fopen(filename, "a");
 
     //receive stream from socket
     while(1){
@@ -143,6 +151,7 @@ int main(int argc, char* argv[]){
             printf("\n recv() connection lost \n");
             break;
         }
+
 
         totalBytesRcvd += bytesRcvd;
         
@@ -178,6 +187,11 @@ int host_to_ip(char* hostname, char* ip){
 
 //Gets the page or directory out of an url (default /)
 int parse_url(char* raw_url, char* domain, char* page){
+
+    //First remove the 'http://' if it exists
+    if(strncmp("http://",raw_url, 7) == 0)
+        raw_url+=7;
+
 
     int contains_slash = 0;
     int url_len = strlen(raw_url);
