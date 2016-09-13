@@ -134,11 +134,13 @@ int main(int argc, char* argv[]){
         return 1;
     }
 
+    FILE *output_file = fopen(raw_url, "a");
+
     //receive stream from socket
     while(1){
         //set bytesRcvd, fill in_buffer, and check for errors/closed connection
         if((bytesRcvd = recv(socketfd, in_buffer, IN_BUFFER_LEN - 1, 0)) <= 0){
-            printf("\n recv() failed or connection lost \n");
+            printf("\n recv() connection lost \n");
             break;
         }
 
@@ -146,7 +148,9 @@ int main(int argc, char* argv[]){
         
         //terminate string
         in_buffer[bytesRcvd] = '\0';
+        //print recv'd bytes and output to file
         printf("%s", in_buffer);
+        fprintf(output_file, "%s", in_buffer);
     }
     
     close(socketfd);
