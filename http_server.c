@@ -48,7 +48,7 @@ int main (int argc, char* argv[]){
 
     //Bind and listen
     if(bind(server_socket, (struct sockaddr*) &my_address, sizeof(my_address)) < 0){
-        printf("bind() failed, quitting");
+        printf("bind() failed, try a different port (preferably >5000)\n");
         return 1;
     }
 
@@ -67,14 +67,16 @@ int main (int argc, char* argv[]){
 
         if((client_socket = accept(server_socket, (struct sockaddr *) 
                 &my_address, &client_address_size)) < 0){
-            printf("accept() failed, quitting");
-            return 1;
+            printf("accept() failed, waiting for new client");
+            close(client_socket);
+            continue;
         }
 
         printf("Client connected at %s\n", inet_ntoa(client_address.sin_addr));
         handle_client(client_socket);
-        close(server_socket);
+        close(client_socket);
     }
+    close(server_socket);
     return 0;
 }
 
@@ -106,9 +108,11 @@ int handle_client(int socket){
 
     char* http_version = strtok(NULL, " ");
 
+    /*
     printf("\n httpmethod: %s\n", http_method);
     printf("\n filename: %s\n", filename);
     printf("\n http_version: %s\n", http_version);
+    */
 
     //check for parsing errors
     if(0){
@@ -136,7 +140,7 @@ int handle_client(int socket){
             //File exists, send 200 ok, and then the file
             sprintf(out_buffer, "HTTP/1.1 200 OK\r\n" 
                                 "Date: %s\r\n"
-                                "Content-Type: text/plain\r\n"
+                                //"Content-Type: text/plain\r\n"
                                 "Content-Length: %d\r\n"
                                 "\r\n", date, file_len);
 

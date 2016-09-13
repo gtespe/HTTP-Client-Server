@@ -13,7 +13,7 @@
 
 #define OUT_BUFFER_LEN (513)
 #define IN_BUFFER_LEN (1025)
-#define USERAGENT "http_client 1.0"
+#define USERAGENT "http_client.c 1.0"
 
 int host_to_ip(char* hostname, char* ip);
 int parse_url(char* raw_url, char* domain, char* page);
@@ -174,6 +174,11 @@ int host_to_ip(char* hostname, char* ip){
 
 //Gets the page or directory out of an url (default /)
 int parse_url(char* raw_url, char* domain, char* page){
+
+    //First remove the 'http://' if it exists
+    if(strncmp("http://",raw_url, 7) == 0)
+        raw_url+=7;
+
 
     int contains_slash = 0;
     int url_len = strlen(raw_url);
