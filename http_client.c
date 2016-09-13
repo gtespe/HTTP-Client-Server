@@ -179,11 +179,6 @@ int host_to_ip(char* hostname, char* ip){
 //Gets the page or directory out of an url (default /)
 int parse_url(char* raw_url, char* domain, char* page){
 
-    //First remove the 'http://' if it exists
-    if(strncmp("http://",raw_url, 7) == 0)
-        raw_url+=7;
-
-
     int contains_slash = 0;
     int url_len = strlen(raw_url);
     
