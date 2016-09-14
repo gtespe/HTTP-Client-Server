@@ -143,6 +143,7 @@ int main(int argc, char* argv[]){
         sprintf(filename, "%s", raw_url);
 
     FILE *output_file = fopen(filename, "a");
+    int write_to_file = 0;
 
     //receive stream from socket
     while(1){
@@ -152,14 +153,30 @@ int main(int argc, char* argv[]){
             break;
         }
 
-
         totalBytesRcvd += bytesRcvd;
         
         //terminate string
         in_buffer[bytesRcvd] = '\0';
+
+        //If write_to_file = 0, this is the first pass.
+        //   This ensures we don't output the HTTP message to file
+        if(!write_to_file){
+            int i;
+            //find the index of the string with a /n/r/n
+            for(i=2; in_buffer[i] != '\n' ||
+                     in_buffer[i-1] != '\r' ||
+                     in_buffer[i-2] != '\n'; i++); 
+
+            //Send everything after that index to the file
+            fprintf(output_file, "%s", in_buffer+i+1);
+        }
         //print recv'd bytes and output to file
         printf("%s", in_buffer);
-        fprintf(output_file, "%s", in_buffer);
+
+        if(write_to_file)
+            fprintf(output_file, "%s", in_buffer);
+
+        write_to_file = 1;
     }
     
     close(socketfd);
@@ -191,7 +208,6 @@ int parse_url(char* raw_url, char* domain, char* page){
     //First remove the 'http://' if it exists
     if(strncmp("http://",raw_url, 7) == 0)
         raw_url+=7;
-
 
     int contains_slash = 0;
     int url_len = strlen(raw_url);

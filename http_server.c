@@ -1,3 +1,4 @@
+//Grant Espe
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -9,6 +10,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <signal.h>
 
 #define MAXPENDING (5)
 #define IN_BUFFER_LEN (1024)
@@ -17,7 +19,17 @@
 
 int handle_client(int socket);
 
+int TERMINATE = 0;
+void term(int signum){
+    TERMINATE = 1;
+}
+
 int main (int argc, char* argv[]){
+    //Set up signal handling to close gracefully
+    struct sigaction siga;
+    memset(&siga, 0, sizeof(struct sigaction));
+    siga.sa_handler = term;
+    sigaction(SIGINT, &siga, NULL);
 
     if(argc != 2){
         printf("USAGE: ./http_server <port>\n");
@@ -56,18 +68,18 @@ int main (int argc, char* argv[]){
         printf("listen() failed, quitting");
         return 1;
     }
+
     //start infinite loop
-    while(1){
+    while(!TERMINATE){
         printf("Waiting for client...\n");
 
         //size of client address struct
         int client_address_size = sizeof(client_address);
         //accept incoming connection
 
-
         if((client_socket = accept(server_socket, (struct sockaddr *) 
                 &my_address, &client_address_size)) < 0){
-            printf("accept() failed, waiting for new client");
+            printf("accept() failed\n");
             close(client_socket);
             continue;
         }
@@ -76,6 +88,8 @@ int main (int argc, char* argv[]){
         handle_client(client_socket);
         close(client_socket);
     }
+
+    printf("Closing sockets\n");
     close(server_socket);
     return 0;
 }
