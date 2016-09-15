@@ -17,10 +17,9 @@
 
 int host_to_ip(char* hostname, char* ip);
 int parse_url(char* raw_url, char* domain, char* page);
+FILE * parse_filename(char* raw_url);
 
 int main(int argc, char* argv[]){
-
-
     struct timeval start, stop;
 
     short get_rtt = 0;
@@ -61,6 +60,7 @@ int main(int argc, char* argv[]){
     //char in_buffer[IN_BUFFER_LEN];
     char in_buffer[IN_BUFFER_LEN];
 
+    //get url arg
     char* raw_url = argv[1];
 
     //allocate space for the domain name and page
@@ -108,6 +108,11 @@ int main(int argc, char* argv[]){
     int connect_result = connect(socketfd, (const struct sockaddr*)&server_address,
             sizeof(server_address));
 
+    if(connect_result == -1){
+        printf("\n connect() error, quitting\n");
+        return 1;
+    }
+
     //end timer for rtt
     // NOTE: this isnt in an if statement to reduce the margin of error
     gettimeofday(&stop, NULL);
@@ -130,19 +135,11 @@ int main(int argc, char* argv[]){
     //send buffer
     int send_result = send(socketfd, out_buffer, strlen(out_buffer), 0);
     if(send_result != out_len){
-        printf("\n send() sent different number of bytes than expected \n");
+        printf("\n send() sent different number of bytes than expected\n");
         return 1;
     }
 
-    char filename[strlen(raw_url) + 6];
-
-    //Add .html if necessary
-    if(strstr(raw_url, ".html") == NULL)
-        sprintf(filename, "%s%s", raw_url, ".html");
-    else
-        sprintf(filename, "%s", raw_url);
-
-    FILE *output_file = fopen(filename, "a");
+    FILE *output_file = parse_filename(raw_url);
     int write_to_file = 0;
 
     //receive stream from socket
@@ -181,6 +178,28 @@ int main(int argc, char* argv[]){
     
     close(socketfd);
     return 0;
+}
+
+//Takes a url and returns an OPEN file with a decent filename
+FILE * parse_filename(char* raw_url){
+    char filename[strlen(raw_url) + 6];
+
+    //Add .html if necessary
+    if(strstr(raw_url, ".html") == NULL)
+        sprintf(filename, "%s%s", raw_url, ".html");
+    else
+        sprintf(filename, "%s", raw_url);
+
+    //Remove all '/' characters and replace them with '_'
+    int k;
+    int filename_len = strlen(filename);
+    for(k = 0; k < filename_len; k++){
+        if(filename[k] == '/')
+            filename[k] = '_';
+    }
+
+    FILE *output_file = fopen(filename, "a");
+    return output_file;
 }
 
 //Converts a hostname to an ip address
@@ -223,7 +242,6 @@ int parse_url(char* raw_url, char* domain, char* page){
     //if the url contains a slash, put page equal to everything after the slash
     if(contains_slash){
         strcpy(page, &raw_url[index]);
-        printf("ehert\n");
         raw_url[index] = '\0';
         strcpy(domain, raw_url);
     }
