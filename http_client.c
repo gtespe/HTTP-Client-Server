@@ -194,7 +194,7 @@ FILE * parse_filename(char* raw_url){
     int k;
     int filename_len = strlen(filename);
     for(k = 0; k < filename_len; k++){
-        if(filename[k] == '/')
+        if(filename[k] == '/' || filename[k] == ':')
             filename[k] = '_';
     }
 
