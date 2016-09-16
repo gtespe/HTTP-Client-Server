@@ -125,7 +125,7 @@ void* handle_client(void* socket_in){
     if((bytesRcvd = recv(socket, &in_buffer, IN_BUFFER_LEN,0)) <= 0){
         printf("\nrecv() failed or client disconnected, quitting...\n");
         close(socket);
-        return; 
+        return (void*)1; 
     }
     printf("\n recv successful:\n %s\n", in_buffer);
     
@@ -153,7 +153,7 @@ void* handle_client(void* socket_in){
         }
         free(socket_in);
         close(socket);
-        return; 
+        return (void*)1; 
     }
     else{
         //check if the file exists
@@ -204,7 +204,7 @@ void* handle_client(void* socket_in){
                 printf("FILE READ ERROR, Quitting");
                 free(socket_in);
                 close(socket);
-                return; 
+                return(void*)1; 
             }
         }
         else{
@@ -221,7 +221,7 @@ void* handle_client(void* socket_in){
 
             free(socket_in);
             close(socket);
-            return;
+            return(void*)1;
         }
     }
     free(socket_in);
