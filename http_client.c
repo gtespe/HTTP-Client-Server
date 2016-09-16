@@ -145,7 +145,11 @@ int main(int argc, char* argv[]){
     //receive stream from socket
     while(1){
         //set bytesRcvd, fill in_buffer, and check for errors/closed connection
-        if((bytesRcvd = recv(socketfd, in_buffer, IN_BUFFER_LEN - 1, 0)) <= 0){
+        if((bytesRcvd = recv(socketfd, in_buffer, IN_BUFFER_LEN - 1, 0)) == 0){
+            //finished
+            break;
+        }
+        else if (bytesRcvd < 0){
             printf("\n recv() connection lost \n");
             break;
         }
