@@ -19,48 +19,22 @@
 #define FILECHUNK_SIZE (1024)
 
 int handle_client(int socket);
-void* socket_setup(void* threadid);
 
 int TERMINATE = 0;
 void term(int signum){
     TERMINATE = 1;
 }
 
-unsigned short PORT;
-
 int main (int argc, char* argv[]){
-
-    if(argc != 2){
-        printf("USAGE: ./http_server <port>\n");
-    }
-
-    PORT = atoi(argv[1]);
-
     //Set up signal handling to close gracefully
     struct sigaction siga;
     memset(&siga, 0, sizeof(struct sigaction));
     siga.sa_handler = term;
     sigaction(SIGINT, &siga, NULL);
 
-    pthread_t handler_thread;
-
-    int k;
-    for (k=1; k<= MAXPENDING; k++) {
-        if(pthread_create(&handler_thread , NULL ,  socket_setup, (void*)k) < 0){
-            perror("pthread_create unsuccessful");
-            printf("Tread creation unsuccessful, quitting\n");
-            TERMINATE = 1;
-            return 1;
-        }
+    if(argc != 2){
+        printf("USAGE: ./http_server <port>\n");
     }
-
-    pthread_exit(NULL);
-
-    return 0;
-}
-
-
-void* socket_setup(void* threadid){
 
     int server_socket;
     int client_socket;
@@ -68,7 +42,7 @@ void* socket_setup(void* threadid){
     struct sockaddr_in client_address;
     struct sockaddr_in my_address;
 
-    unsigned short my_port = PORT;
+    unsigned short my_port = atoi(argv[1]);
     
     if((server_socket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
         printf("socket() failed, quitting");
@@ -120,6 +94,7 @@ void* socket_setup(void* threadid){
 
     printf("Closing sockets\n");
     close(server_socket);
+    return 0;
 }
 
 
