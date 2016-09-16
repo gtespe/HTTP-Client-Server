@@ -12,3 +12,7 @@ http_server.o: http_server.c
 http_server: http_server.o
 	gcc -pthread http_server.o -o http_server
 
+clean:
+	rm *.o
+	rm http_server
+	rm http_client

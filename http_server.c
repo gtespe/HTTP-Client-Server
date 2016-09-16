@@ -13,7 +13,7 @@
 #include <signal.h>
 #include <pthread.h>
 
-#define MAXPENDING (10)
+#define MAXPENDING (15)
 #define IN_BUFFER_LEN (1024)
 #define OUT_BUFFER_LEN (1024)
 #define FILECHUNK_SIZE (1024)
@@ -34,6 +34,7 @@ int main (int argc, char* argv[]){
 
     if(argc != 2){
         printf("USAGE: ./http_server <port>\n");
+        return 1;
     }
 
     int server_socket;
@@ -83,6 +84,7 @@ int main (int argc, char* argv[]){
         pthread_t *handler_thread = (pthread_t*)malloc(sizeof(pthread_t*));
         int *socket_out = malloc(sizeof(int*));
 
+        //Accept incoming connections
         if((client_socket = accept(server_socket, (struct sockaddr *) 
                 &my_address, &client_address_size)) < 0){
             if(!TERMINATE)
@@ -93,6 +95,7 @@ int main (int argc, char* argv[]){
         *socket_out = client_socket;
         printf("Client connected at %s\n", inet_ntoa(my_address.sin_addr));
 
+        //Create handler thread, move to next loop to accept more clients
         if(pthread_create(handler_thread, NULL, handle_client, (void*)socket_out)<0){
             perror("Thread creation error");
             return 1;
@@ -111,6 +114,8 @@ void* handle_client(void* socket_in){
     //Get the date for http
     time_t t = time(NULL);
     struct tm* date = localtime(&t);
+    char datestring[32];
+    strftime(datestring, 32, "%Y-%m-%d %H:%M:%S", date);
 
     int socket = *(int*)socket_in;
 
@@ -120,7 +125,7 @@ void* handle_client(void* socket_in){
     if((bytesRcvd = recv(socket, &in_buffer, IN_BUFFER_LEN,0)) <= 0){
         printf("\nrecv() failed or client disconnected, quitting...\n");
         close(socket);
-        return 1;
+        return; 
     }
     printf("\n recv successful:\n %s\n", in_buffer);
     
@@ -139,16 +144,16 @@ void* handle_client(void* socket_in){
         //Error parsing request, send 403
         printf("Invalid request, sending 403\n");
         sprintf(out_buffer, "HTTP/1.1 403 Bad Request\r\n" 
-                            "Date: %c\r\n"
-                            "\r\n", date);
+                            "Date: %s\r\n"
+                            "Connection: close\r\n"
+                            "\r\n", datestring);
         int out_len = strlen(out_buffer);
         if(send(socket, out_buffer, out_len, 0) != out_len){
             printf("\nsent different number of bytes than expected");
         }
-        printf("403 sent\n");
         free(socket_in);
         close(socket);
-        return 1;
+        return; 
     }
     else{
         //check if the file exists
@@ -164,7 +169,8 @@ void* handle_client(void* socket_in){
                                 "Date: %s\r\n"
                                 //"Content-Type: text/plain\r\n"
                                 "Content-Length: %d\r\n"
-                                "\r\n", date, file_len);
+                                "Connection: close\r\n"
+                                "\r\n", datestring, file_len);
 
             int out_len = strlen(out_buffer);
 
@@ -182,7 +188,7 @@ void* handle_client(void* socket_in){
 
             while(bytes_read > 0){
                 //send filechunks and repeat
-                printf("Sending: \n  %s\n", filechunk);
+                //printf("Sending: \n  %s\n", filechunk);
                 send(socket, filechunk, chunk_len, 0);
                 bytes_read = fread(filechunk, sizeof(filechunk), 1, fp);
                 chunk_len = strlen(filechunk);
@@ -198,27 +204,26 @@ void* handle_client(void* socket_in){
                 printf("FILE READ ERROR, Quitting");
                 free(socket_in);
                 close(socket);
-                return 1;
+                return; 
             }
         }
         else{
             //file doesnt exist, send 404
             sprintf(out_buffer, "HTTP/1.1 404 Not Found\r\n" 
-                                "Date: %c\r\n"
-                                "\r\n", date);
+                                "Date: %s\r\n"
+                                "Connection: close\r\n"
+                                "\r\n", datestring);
 
             int out_len = strlen(out_buffer);
             if(send(socket, out_buffer, out_len, 0) != out_len){
                 printf("\nsent different number of bytes than expected");
             }
-            printf("404 sent\n");
 
             free(socket_in);
             close(socket);
-            return 1;
+            return;
         }
     }
     free(socket_in);
     close(socket);
 }
-
