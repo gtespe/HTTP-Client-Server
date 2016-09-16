@@ -18,49 +18,23 @@
 #define OUT_BUFFER_LEN (1024)
 #define FILECHUNK_SIZE (1024)
 
-int handle_client(int socket);
-void* socket_setup(void* threadid);
+void* handle_client(void* socket_in);
 
 int TERMINATE = 0;
 void term(int signum){
     TERMINATE = 1;
 }
 
-unsigned short PORT;
-
 int main (int argc, char* argv[]){
-
-    if(argc != 2){
-        printf("USAGE: ./http_server <port>\n");
-    }
-
-    PORT = atoi(argv[1]);
-
     //Set up signal handling to close gracefully
     struct sigaction siga;
     memset(&siga, 0, sizeof(struct sigaction));
     siga.sa_handler = term;
     sigaction(SIGINT, &siga, NULL);
 
-    pthread_t handler_thread;
-
-    int k;
-    for (k=1; k<= MAXPENDING; k++) {
-        if(pthread_create(&handler_thread , NULL ,  socket_setup, (void*)k) < 0){
-            perror("pthread_create unsuccessful");
-            printf("Tread creation unsuccessful, quitting\n");
-            TERMINATE = 1;
-            return 1;
-        }
+    if(argc != 2){
+        printf("USAGE: ./http_server <port>\n");
     }
-
-    pthread_exit(NULL);
-
-    return 0;
-}
-
-
-void* socket_setup(void* threadid){
 
     int server_socket;
     int client_socket;
@@ -68,7 +42,7 @@ void* socket_setup(void* threadid){
     struct sockaddr_in client_address;
     struct sockaddr_in my_address;
 
-    unsigned short my_port = PORT;
+    unsigned short my_port = atoi(argv[1]);
     
     if((server_socket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
         printf("socket() failed, quitting");
@@ -106,6 +80,9 @@ void* socket_setup(void* threadid){
         int client_address_size = sizeof(client_address);
         //accept incoming connection
 
+        pthread_t *handler_thread = (pthread_t*)malloc(sizeof(pthread_t*));
+        int *socket_out = malloc(sizeof(int*));
+
         if((client_socket = accept(server_socket, (struct sockaddr *) 
                 &my_address, &client_address_size)) < 0){
             if(!TERMINATE)
@@ -113,22 +90,29 @@ void* socket_setup(void* threadid){
             close(client_socket);
             continue;
         }
+        *socket_out = client_socket;
+        printf("Client connected at %s\n", inet_ntoa(my_address.sin_addr));
 
-        printf("Client connected at %s\n", inet_ntoa(client_address.sin_addr));
-        handle_client(client_socket);
+        if(pthread_create(handler_thread, NULL, handle_client, (void*)socket_out)<0){
+            perror("Thread creation error");
+            return 1;
+        }
     }
 
     printf("Closing sockets\n");
     close(server_socket);
+    return 0;
 }
 
 
 //Fetches the file and sends it to the client over the socket
 // Sends http statuses as well.
-int handle_client(int socket){
+void* handle_client(void* socket_in){
     //Get the date for http
     time_t t = time(NULL);
     struct tm* date = localtime(&t);
+
+    int socket = *(int*)socket_in;
 
     int bytesRcvd;
     char in_buffer[IN_BUFFER_LEN]; 
@@ -138,7 +122,6 @@ int handle_client(int socket){
         close(socket);
         return 1;
     }
-
     printf("\n recv successful:\n %s\n", in_buffer);
     
     char out_buffer[OUT_BUFFER_LEN];
@@ -146,16 +129,10 @@ int handle_client(int socket){
     char* http_method = strtok(in_buffer, " ");
     char* filename = strtok(NULL, " ");
 
-    //This is to make the filename ignore the initial /
+    //This is to make the filename ignore the initial / char
     filename+=1;
 
     char* http_version = strtok(NULL, " ");
-
-    /*
-    printf("\n httpmethod: %s\n", http_method);
-    printf("\n filename: %s\n", filename);
-    printf("\n http_version: %s\n", http_version);
-    */
 
     //check for parsing errors
     if(0){
@@ -169,6 +146,7 @@ int handle_client(int socket){
             printf("\nsent different number of bytes than expected");
         }
         printf("403 sent\n");
+        free(socket_in);
         close(socket);
         return 1;
     }
@@ -218,6 +196,7 @@ int handle_client(int socket){
             else{
                 //There was an error
                 printf("FILE READ ERROR, Quitting");
+                free(socket_in);
                 close(socket);
                 return 1;
             }
@@ -234,10 +213,12 @@ int handle_client(int socket){
             }
             printf("404 sent\n");
 
+            free(socket_in);
             close(socket);
             return 1;
         }
     }
+    free(socket_in);
     close(socket);
 }
 
