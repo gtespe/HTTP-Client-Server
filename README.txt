@@ -22,4 +22,3 @@ I did manage to get the server multithreaded.
 
 To close the server, send a SIGINT signal with ctrl+c
 
-
